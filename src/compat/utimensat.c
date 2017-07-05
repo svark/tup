@@ -33,7 +33,7 @@ int utimensat(int dirfd, const char *pathname, const struct timespec times[2], i
 	tv[0].tv_usec = times[0].tv_nsec / 1000;
 	tv[1].tv_sec = times[1].tv_sec;
 	tv[1].tv_usec = times[1].tv_nsec / 1000;
-
+   //fprintf(stderr, "*utimes\n");
 	dir_mutex_lock(dirfd);
 	if(flags & AT_SYMLINK_NOFOLLOW) {
 		rc = lutimes(pathname, tv);

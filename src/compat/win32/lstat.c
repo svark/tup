@@ -50,13 +50,11 @@ static dev_t stat_dev_for(const wchar_t *wpathname)
 	return fullpath[0] - L'A';
 }
 
-int win_lstat(const char *pathname, struct stat *buf)
+int win_wlstat(const wchar_t *wpathname, struct stat *buf)
 {
 	WIN32_FILE_ATTRIBUTE_DATA data;
-	wchar_t wpathname[PATH_MAX];
-
-	MultiByteToWideChar(CP_UTF8, 0, pathname, -1, wpathname, PATH_MAX);
-
+	
+	
 	if(!GetFileAttributesExW(wpathname, GetFileExInfoStandard, &data)) {
 		DWORD err = GetLastError();
 		if(err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) {
@@ -89,13 +87,13 @@ int win_lstat(const char *pathname, struct stat *buf)
 	if(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 		buf->st_mode |= S_IFDIR | S_IEXEC;
 	} else {
-		const char *ext = strrchr(pathname, '.');
+		const wchar_t *ext = wcschr(wpathname, '.');
 		if(ext) {
-			if(!stricmp(ext, ".exe") ||
-			   !stricmp(ext, ".cmd") ||
-			   !stricmp(ext, ".pif") ||
-			   !stricmp(ext, ".bat") ||
-			   !stricmp(ext, ".com")) {
+			if(!wcsicmp(ext, L".exe") ||
+			   !wcsicmp(ext, L".cmd") ||
+			   !wcsicmp(ext, L".pif") ||
+			   !wcsicmp(ext, L".bat") ||
+			   !wcsicmp(ext, L".com")) {
 				buf->st_mode |= S_IEXEC;
 			}
 		}
@@ -112,4 +110,13 @@ int win_lstat(const char *pathname, struct stat *buf)
 	buf->st_mode |= (buf->st_mode & S_IRWXU) >> 6;
 
 	return 0;
+}
+	
+int win_lstat(const char *pathname, struct stat *buf)
+{
+	//WIN32_FILE_ATTRIBUTE_DATA data;
+	wchar_t wpathname[PATH_MAX];
+
+	MultiByteToWideChar(CP_UTF8, 0, pathname, -1, wpathname, PATH_MAX);
+   return win_wlstat(wpathname, buf);
 }

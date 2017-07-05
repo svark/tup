@@ -552,6 +552,8 @@ static int tuplua_function_chdir(lua_State *ls)
 #ifdef _WIN32
 	open_notify(ACCESS_READ, filename);
 #endif
+	fprintf(stderr,"tuplua: %s:", filename);
+
 	if(fchdir(tf->cur_dfd) < 0) {
 		perror("fchdir");
 		return luaL_error(ls, "tup error: Unable to chdir into virtual tup directory for io.open");
@@ -561,6 +563,7 @@ static int tuplua_function_chdir(lua_State *ls)
 
 static int tuplua_function_unchdir(lua_State *ls)
 {
+	fprintf(stderr,"%s","lua state back to tup top\n");
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir");
 		return luaL_error(ls, "tup error: Unable to chdir back to root tup directory for io.open");

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include "tup/config.h"
 #include "compat/dir_mutex.h"
-
+#include "tup/compat.h"
 FILE *__wrap_tmpfile(void) ATTRIBUTE_USED;
 
 FILE *__wrap_tmpfile(void)
@@ -38,10 +38,14 @@ FILE *__wrap_tmpfile(void)
 	wchar_t wfilename[64];
 	FILE *f = NULL;
 	HANDLE h;
+//fprintf(stderr, "lock top for tmp creation\n");
+	//dir_mutex_lock(tup_top_fd());
+	char tmpfolder[1024];
+	const char *rootdir = win32_get_dirpath(tup_top_fd());
+	sprintf(tmpfolder, "%s\\.tup\\tmp", 
+	rootdir);
 
-	dir_mutex_lock(tup_top_fd());
-
-	if(mkdir(".tup/tmp") < 0) {
+	if(mkdir(tmpfolder) < 0) {
 		if(errno != EEXIST) {
 			perror(".tup/tmp");
 			fprintf(stderr, "tup error: Unable to create temporary working directory.\n");
@@ -49,7 +53,8 @@ FILE *__wrap_tmpfile(void)
 		}
 	}
 
-	snprintf(filename, sizeof(filename), ".tup/tmp/tmpfile-%i", num);
+	snprintf(filename, sizeof(filename), 
+	"%s/.tup/tmp/tmpfile-%i", rootdir, num);
 	filename[sizeof(filename)-1] = 0;
 	num++;
 
@@ -71,7 +76,7 @@ FILE *__wrap_tmpfile(void)
 		}
 	}
 err_out:
-	dir_mutex_unlock();
+	//dir_mutex_unlock();
 
 	return f;
 }

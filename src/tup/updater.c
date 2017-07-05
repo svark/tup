@@ -47,7 +47,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/stat.h>
-
+#include "../compat/dir_mutex.h"
 #define MAX_JOBS 65535
 
 typedef int(*worker_function)(struct graph *g, struct node *n);
@@ -74,6 +74,7 @@ static int expand_command(char **res,
 			  struct tupid_entries *group_sticky_root,
 			  struct tupid_entries *used_groups_root);
 static int update(struct node *n);
+extern int movefile(const char*, const char*);
 
 static int do_keep_going;
 static int num_jobs;
@@ -695,6 +696,7 @@ static int check_empty_variant(struct tup_entry *tent)
 		fprintf(stderr, "\n");
 		return -1;
 	}
+	fprintf(stderr, "attempting to chdir to variant dir:");
 	if(fchdir(fd) < 0) {
 		perror("fchdir");
 		return -1;
@@ -714,6 +716,7 @@ static int check_empty_variant(struct tup_entry *tent)
 		}
 		fprintf(stderr, " - %s\n", f.filename);
 	}
+	fprintf(stderr, "fchdir to tuptop");
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir(tup_top_fd())");
 		return -1;
@@ -2020,14 +2023,14 @@ static int move_outputs(struct node *n)
 				fprintf(stderr, "tup error: tmppath sized incorrectly in move_outputs()\n");
 				return -1;
 			}
-			if(fchdir(tup_top_fd()) < 0)
-				return -1;
-			if(rename(curpath, tmppath) < 0) {
+			fprintf(stderr, "movenodes: %s-> %s\n", curpath, tmppath);
+			
+			if(!movefile(curpath, tmppath)) {
 				/* ENOENT is ok, since the file may not exist
 				 * yet (first time we run the command, for
 				 * example).
 				 */
-				if(errno != ENOENT) {
+				if( errno != ENOENT) {
 					perror(tmppath);
 					fprintf(stderr, "tup error: Unable to move output file '%s' to temporary location '%s'\n", curpath, tmppath);
 					return -1;
@@ -2502,6 +2505,7 @@ static int expand_command(char **res,
 	const char *percgroup;
 	const char *tcmd;
 	int tcmdlen;
+	int lck;
 	struct expand_info info = {
 		.tent = tent,
 		.groupname = NULL,
@@ -2517,7 +2521,10 @@ static int expand_command(char **res,
 
 	if(estring_init(&expanded_name) < 0)
 		return -1;
-	if(fchdir(tup_top_fd()) < 0) {
+	fprintf(stderr, "expand command tup top:%s:", cmd);
+    lck = 0;
+	 dir_mutex_lock(tup_top_fd());
+	 if(lck < 0) {
 		perror("fchdir");
 		fprintf(stderr, "tup error: Unable to create temporary resource file.\n");
 		return -1;
@@ -2529,12 +2536,12 @@ static int expand_command(char **res,
 		char *endgroup;
 
 		if(estring_append(&expanded_name, tcmd, prelen) < 0)
-			return -1;
+			goto err;
 
 		endgroup = strchr(percgroup, '>');
 		if(!endgroup) {
 			fprintf(stderr, "tup error: Unable to find end-group marker '>' for %%<group> flag.\n");
-			return -1;
+			goto err;
 		}
 		endgroup++;
 
@@ -2544,19 +2551,26 @@ static int expand_command(char **res,
 		if(strncmp(tcmd, ".res", 4) == 0) {
 			tcmd += 4;
 			if(expand_res_file(&expanded_name, &info) < 0)
-				return -1;
+				{
+					goto err;
+				}
 		} else {
 			if(expand_group_inline(&expanded_name, &info) < 0)
-				return -1;
+				goto err;
 		}
 	}
 	tcmdlen = strlen(tcmd);
 	if(estring_append(&expanded_name, tcmd, tcmdlen) < 0)
-		return -1;
+		goto err;
 	if(estring_append(&expanded_name, "\0", 1) < 0)
-		return -1;
+		goto err;
 	*res = expanded_name.s;
+	fprintf(stderr, "expanded %s", *res);
+    dir_mutex_unlock();
 	return 0;
+err:
+	dir_mutex_unlock();
+	return -1;
 }
 
 static const char *input_and_output_from_cmd(const char *cmd, struct tup_entry *dtent, char *input, char *output)

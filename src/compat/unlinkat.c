@@ -26,12 +26,15 @@
 int unlinkat(int dirfd, const char *pathname, int flags)
 {
 	int rc;
-
-	dir_mutex_lock(dirfd);
+   // fprintf(stderr, "unlink : %s\n", pathname);
+	//dir_mutex_lock(dirfd);
+	char fp[1024];
+	fullpath(fp, 1024, 
+	win32_get_dirpath(dirfd), pathname);
 	if(flags == AT_REMOVEDIR)
-		rc = rmdir(pathname);
+		rc = rmdir(fp);
 	else
-		rc = unlink(pathname);
-	dir_mutex_unlock();
+		rc = unlink(fp);
+	//dir_mutex_unlock();
 	return rc;
 }

@@ -31,22 +31,19 @@ int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpat
 		fprintf(stderr, "tup compat renameat error: olddirfd=%i but newdirfd=%i\n", olddirfd, newdirfd);
 		return -1;
 	}
+	char oldpathp[1024];
+	char newpathp[1024];
+	strcpy(oldpathp, oldpath);
+	strcpy(newpathp, newpath);
 
-	dir_mutex_lock(olddirfd);
+	//;
 #ifdef _WIN32
-	wchar_t woldpath[PATH_MAX];
-	wchar_t wnewpath[PATH_MAX];
-	MultiByteToWideChar(CP_UTF8, 0, oldpath, -1, woldpath, PATH_MAX);
-	MultiByteToWideChar(CP_UTF8, 0, newpath, -1, wnewpath, PATH_MAX);
-
-	if(MoveFileEx(woldpath, wnewpath, MOVEFILE_REPLACE_EXISTING)) {
-		rc = 0;
-	} else {
-		rc = -1;
-	}
+   extern int movefile(const char *, const char*);
+   rc = movefile(oldpathp, newpathp);
 #else
-	rc = rename(oldpath, newpath);
-#endif
+dir_mutex_lock(olddirfd)
+	rc = rename(oldpathp, newpathp);
 	dir_mutex_unlock();
+#endif
 	return rc;
 }

@@ -28,9 +28,12 @@ int faccessat(int dirfd, const char *pathname, int mode, int flags)
 	int rc;
 
 	if(flags) {/* No way to access() a symlink? */}
-
-	dir_mutex_lock(dirfd);
-	rc = access(pathname, mode);
-	dir_mutex_unlock();
+//fprintf(stderr, "*access\n");
+	//dir_mutex_lock(dirfd);
+	char fp[1024];
+	fp[0] = '\0';
+	fullpath(fp, 1024, win32_get_dirpath(dirfd), pathname);
+	rc = access(fp, mode);
+	//dir_mutex_unlock();
 	return rc;
 }

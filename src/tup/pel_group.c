@@ -31,6 +31,7 @@ int pel_ignored(const char *path, int len)
 {
 	if(len < 0)
 		len = strlen(path);
+	
 	if(len == 1 && strncmp(path, ".", 1) == 0)
 		return 1;
 	if(len == 2 && strncmp(path, "..", 2) == 0)
@@ -44,6 +45,8 @@ int pel_ignored(const char *path, int len)
 	if(len == 4 && strncmp(path, ".bzr", 4) == 0)
 		return 1;
 	if(len == 4 && strncmp(path, ".svn", 4) == 0)
+		return 1;
+	else if(len > 4 && strncmp(path+len-4, ".pdb", 4) == 0)
 		return 1;
 	/* See also fuse_fs.c:is_hidden() */
 	return 0;

@@ -74,19 +74,21 @@ tupid_t create_command_file(tupid_t dt, const char *cmd, const char *display, in
 tupid_t tup_file_mod(tupid_t dt, const char *file, int *modified)
 {
 	struct stat buf;
-
-	if(tup_db_chdir(dt) < 0)
-		return -1;
-	if(lstat(file, &buf) != 0) {
+    const char *dir = win32_get_dirpath(dt);
+	char abspath[1024];
+	abspath[0] = '\0';
+	if( fullpath(abspath, 1024, dir, file) < 0)
+	{
+		fprintf(stderr, "tup error: could not get full path of %s\n in dir:%s\n", file, dir);
+	   return -1;
+	}
+    
+	if(lstat(abspath, &buf) != 0) {
 		if(errno == ENOENT) {
 			return tup_file_del(dt, file, -1, modified);
 		}
 		fprintf(stderr, "tup error: tup_file_mod() lstat failed.\n");
 		perror(file);
-		return -1;
-	}
-	if(fchdir(tup_top_fd()) < 0) {
-		perror("fchdir");
 		return -1;
 	}
 	return tup_file_mod_mtime(dt, file, MTIME(buf), 1, 1, modified);
