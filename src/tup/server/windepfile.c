@@ -158,7 +158,6 @@ wchar_t* conv_to_wchar_ptr(const char *cmdline)
 	MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, wcmdline, len);
     return wcmdline; 
 }
-
 int fullpath(char *fp, unsigned maxdestbuf, const char *dir, const char*file)
 {
 	int ret;
@@ -180,11 +179,17 @@ end:
 	free(wfile);
 	return ret;
 }
+int fullpathfromid(char *fp, unsigned fpbufsize, int dt, const char *file)
+{
+	const char *dir = win32_get_dirpath(dt);
+	return fullpath(fp, fpbufsize, dir, file);
+}
+
 static void conv_slashes(wchar_t *wcurpath)
 {
 	size_t cpsize = wcslen(wcurpath);
-    size_t j = 0;
-    for(j = 0 ; j < cpsize; ++j) {
+	size_t j = 0;
+	for(j = 0 ; j < cpsize; ++j) {
 	   if(wcurpath[j] == L'/')
 	   {
 		   wcurpath[j] = L'\\';

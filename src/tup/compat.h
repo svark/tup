@@ -33,6 +33,7 @@ void compat_lock_disable(void);
 
 #ifdef _WIN32
 extern int fullpath(char *fp, unsigned maxdestbuf, const char *dir, const char*file);
+extern int fullpathfromid(char *fp, unsigned maxdestbuf, int dir, const char*file);
 extern const char* win32_get_dirpath(int id);
 #define is_path_sep(str) ((str)[0] == '/' || (str)[0] == '\\')
 #define is_full_path(str) (is_path_sep(str) || ((str)[0] != '\0' && (str)[1] == ':'))

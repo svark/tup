@@ -35,9 +35,9 @@ int mkdirat(int dirfd, const char *pathname, mode_t mode)
 	if(mode) {/* for win32 */}
 //fprintf(stderr, "mkdir %s", pathname);
 #ifdef _WIN32
-	char fp[1024];
-    fullpath(fp, 1024, 
-	win32_get_dirpath(dirfd), pathname);
+	char fp[PATH_MAX]; fp[0] = '\0';
+    fullpathfromid(fp, PATH_MAX, 
+	dirfd, pathname);
 	wchar_t* wfp = conv_to_wchar_ptr(fp);
 	CreateDirectoryW(wfp,NULL);
 	free(wfp);

@@ -73,17 +73,15 @@ tupid_t create_command_file(tupid_t dt, const char *cmd, const char *display, in
 
 tupid_t tup_file_mod(tupid_t dt, const char *file, int *modified)
 {
-	struct stat buf;
-    const char *dir = win32_get_dirpath(dt);
-	char abspath[1024];
+       	struct stat buf;
+	char abspath[PATH_MAX];
 	abspath[0] = '\0';
-	if( fullpath(abspath, 1024, dir, file) < 0)
+	if( fullpathfromid(abspath, PATH_MAX, dt, file) < 0)
 	{
-		fprintf(stderr, "tup error: could not get full path of %s\n in dir:%s\n", file, dir);
+		fprintf(stderr, "tup error: could not get full path of %s\n in dir\n", file);
 	   return -1;
 	}
-    
-	if(lstat(abspath, &buf) != 0) {
+  	if(lstat(abspath, &buf) != 0) {
 		if(errno == ENOENT) {
 			return tup_file_del(dt, file, -1, modified);
 		}

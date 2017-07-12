@@ -28,9 +28,9 @@ int unlinkat(int dirfd, const char *pathname, int flags)
 	int rc;
    // fprintf(stderr, "unlink : %s\n", pathname);
 	//dir_mutex_lock(dirfd);
-	char fp[1024];
-	fullpath(fp, 1024, 
-	win32_get_dirpath(dirfd), pathname);
+	char fp[PATH_MAX];fp[0] = '\0';
+	fullpathfromid(fp, PATH_MAX, 
+	(dirfd), pathname);
 	if(flags == AT_REMOVEDIR)
 		rc = rmdir(fp);
 	else

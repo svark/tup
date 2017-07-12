@@ -35,10 +35,10 @@ int openat(int dirfd, const char *pathname, int flags, ...)
 		mode = va_arg(ap, int);
 		va_end(ap);
 	}
-	char path[1024];
-	path[1023] = '\0';
-	if( fullpath(path, 1024, 
-	          win32_get_dirpath(dirfd), pathname) < 0)
+	char path[PATH_MAX];
+	path[0] = '\0';
+	if( fullpathfromid(path, PATH_MAX, 
+	          dirfd, pathname) < 0)
 	  return -1;
 	fd = open(path, flags, mode);
 	return fd;
