@@ -67,16 +67,16 @@ int open_notify_fp(enum access_type at,
 const char *pathname,
  const char *fullpath)
 {
-	if(!LIST_EMPTY(&finfo_list_head)) {
+        if(!LIST_EMPTY(&finfo_list_head)) {
 
-		struct finfo_list *flist;
-		struct stat buf;
-	if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
-			flist = LIST_FIRST(&finfo_list_head);
-			if(handle_open_file(at, fullpath, flist->finfo) < 0)
-				return -1;
-		}
-	}
+                struct finfo_list *flist;
+                struct stat buf;
+		if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
+                        flist = LIST_FIRST(&finfo_list_head);
+                        if(handle_open_file(at, fullpath, flist->finfo) < 0)
+                                return -1;
+                }
+        }
 }
 
 int open_notify(enum access_type at, const char *pathname)

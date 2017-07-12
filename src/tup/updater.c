@@ -2468,8 +2468,9 @@ static int expand_res_file(struct estring *expanded_name,
 		num_dotdots++;
 		tmp = tmp->parent;
 	}
-
-	snprintf(tmpfilename, TMPFILESIZE, ".tup/tmp/res-%i", resfile);
+	const char *rootdir = win32_get_dirpath(tup_top_fd());
+	snprintf(tmpfilename, TMPFILESIZE, "%s/.tup/tmp/res-%i",
+		 rootdir, resfile);
 	resfile++;
 	/* Use binary so newlines aren't converted on Windows.
 	 * Both cl and cygwin can handle UNIX line-endings, but
@@ -2521,15 +2522,7 @@ static int expand_command(char **res,
 
 	if(estring_init(&expanded_name) < 0)
 		return -1;
-	fprintf(stderr, "expand command tup top:%s:", cmd);
-    lck = 0;
-	 dir_mutex_lock(tup_top_fd());
-	 if(lck < 0) {
-		perror("fchdir");
-		fprintf(stderr, "tup error: Unable to create temporary resource file.\n");
-		return -1;
-	}
-
+	lck = 0;
 	tcmd = cmd;
 	while((percgroup = strstr(tcmd, "%<")) != NULL) {
 		int prelen = percgroup - tcmd;
@@ -2565,11 +2558,9 @@ static int expand_command(char **res,
 	if(estring_append(&expanded_name, "\0", 1) < 0)
 		goto err;
 	*res = expanded_name.s;
-	fprintf(stderr, "expanded %s", *res);
-    dir_mutex_unlock();
+
 	return 0;
 err:
-	dir_mutex_unlock();
 	return -1;
 }
 
