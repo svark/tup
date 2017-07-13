@@ -63,6 +63,22 @@ int open_notify_pop(struct file_info *finfo)
 	return 0;
 }
 
+int open_notify_fp(enum access_type at, 
+const char *pathname,
+ const char *fullpath)
+{
+        if(!LIST_EMPTY(&finfo_list_head)) {
+
+                struct finfo_list *flist;
+                struct stat buf;
+		if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
+                        flist = LIST_FIRST(&finfo_list_head);
+                        if(handle_open_file(at, fullpath, flist->finfo) < 0)
+                                return -1;
+                }
+        }
+}
+
 int open_notify(enum access_type at, const char *pathname)
 {
 	/* For the parser: manually keep track of file accesses, since we
@@ -88,17 +104,17 @@ int open_notify(enum access_type at, const char *pathname)
 		fullpath[cwdlen] = path_sep();
 		memcpy(fullpath + cwdlen + 1, pathname, pathlen);
 		fullpath[cwdlen + pathlen + 1] = 0;
-
+		return open_notify_fp(at, pathname, fullpath);
 		/* If the stat fails, or if the stat works and we know it
 		 * is a directory, don't actually add the dependency. We
 		 * want failed stats for ghost nodes, and all successful
 		 * file accesses.
 		 */
-		if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
-			flist = LIST_FIRST(&finfo_list_head);
-			if(handle_open_file(at, fullpath, flist->finfo) < 0)
-				return -1;
-		}
+		// if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
+		// 	flist = LIST_FIRST(&finfo_list_head);
+		// 	if(handle_open_file(at, fullpath, flist->finfo) < 0)
+		// 		return -1;
+		// }
 	}
 	return 0;
 }

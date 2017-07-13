@@ -516,6 +516,7 @@ static int mlink(int argc, char **argv)
 static int dir_empty(const char *dirname)
 {
 	struct flist f = FLIST_INITIALIZER;
+	fprintf(stderr, "chk emptydir:%s!!:", dirname);
 	if(chdir(dirname) < 0) {
 		perror(dirname);
 		fprintf(stderr, "tup error: Unable to chdir to variant directory.\n");
@@ -526,6 +527,7 @@ static int dir_empty(const char *dirname)
 			continue;
 		return 0;
 	}
+	fprintf(stderr, "dir_empty: tup top:");
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir");
 		fprintf(stderr, "tup error: Unable to fchdir to the top of the tup hierarchy.\n");
@@ -558,6 +560,7 @@ static int create_variant(const char *config_path)
 		snprintf(dirname, sizeof(dirname), "build-%s", filename);
 	}
 	dirname[sizeof(dirname)-1] = 0;
+	fprintf(stderr, "main man:");
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir");
 		fprintf(stderr, "tup error: Unable to fchdir to the top of the tup hierarchy.\n");

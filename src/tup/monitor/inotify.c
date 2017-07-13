@@ -290,6 +290,7 @@ int monitor(int argc, char **argv)
 				return -1;
 			tup_lock_closeall();
 
+           fprintf(stderr, "top inotify:");
 			if(fchdir(tup_top_fd()) < 0) {
 				perror("fchdir tup_top");
 				return -1;

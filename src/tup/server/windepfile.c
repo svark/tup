@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <Shlwapi.h>
 
 #define TUP_TMP ".tup/tmp"
 
@@ -80,7 +81,6 @@ int server_init(enum server_mode mode)
 	}
 
 	tup_inject_setexecdir(mycwd);
-
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir");
 		return -1;
@@ -98,7 +98,6 @@ int server_init(enum server_mode mode)
 	}
 	tuptmpdir[cwdlen] = '\\';
 	memcpy(tuptmpdir + cwdlen + 1, ".tup\\tmp", sizeof(TUP_TMP));
-
 	if(fchdir(tup_top_fd()) < 0) {
 		perror("fchdir");
 		return -1;
@@ -147,7 +146,85 @@ int server_quit(void)
 {
 	return 0;
 }
+wchar_t* conv_to_wchar_ptr(const char *cmdline)
+{
+	wchar_t *wcmdline = 0;
+	unsigned len = MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, NULL, 0);
+	wcmdline = malloc(sizeof(*wcmdline) * (len + 1));
+	if(!wcmdline) {
+		perror("malloc");
+		return NULL;
+	}
+	MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, wcmdline, len);
+    return wcmdline; 
+}
+int fullpath(char *fp, unsigned maxdestbuf, const char *dir, const char*file)
+{
+	int ret;
+	wchar_t *wdir = conv_to_wchar_ptr(dir);
+	wchar_t *wfile = conv_to_wchar_ptr(file);
+	wchar_t wfp[PATH_MAX];
+	wfp[0] = L'\0';
+	ret = 0;
+	if(!PathCombine(wfp, wdir, wfile))
+	{
+		perror("combine");
+		ret = -1;
+		goto end;
+	}
+	size_t nc =0;
+    wcstombs_s(&nc, fp, maxdestbuf, wfp,PATH_MAX);
+end:
+	free(wdir);
+	free(wfile);
+	return ret;
+}
+int fullpathfromid(char *fp, unsigned fpbufsize, int dt, const char *file)
+{
+	const char *dir = win32_get_dirpath(dt);
+	return fullpath(fp, fpbufsize, dir, file);
+}
 
+static void conv_slashes(wchar_t *wcurpath)
+{
+	size_t cpsize = wcslen(wcurpath);
+	size_t j = 0;
+	for(j = 0 ; j < cpsize; ++j) {
+	   if(wcurpath[j] == L'/')
+	   {
+		   wcurpath[j] = L'\\';
+	   }
+	}
+}
+
+BOOL movefile(const char *curpath, int curdir, 
+const char *tmppath, int tmppathdir)
+{
+	
+	char abscurpath[PATH_MAX], abstmppath[PATH_MAX];
+	abscurpath[0] = '\0';
+	abstmppath[0] = '\0';
+	fullpathfromid(abscurpath, PATH_MAX, curdir, curpath);
+	fullpathfromid(abstmppath, PATH_MAX, tmppathdir, tmppath);
+	wchar_t *wabscurpath = conv_to_wchar_ptr(abscurpath);
+	wchar_t *wabstmppath = conv_to_wchar_ptr(abstmppath);
+	conv_slashes(wabscurpath);
+	conv_slashes(wabstmppath);
+	//fwprintf(stderr, L"moving %ls -> %ls\n", wabscurpath, wabstmppath);
+	BOOL moveok =  MoveFileEx(wabscurpath, wabstmppath, 
+	MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+	free(wabscurpath);
+	free(wabstmppath);
+	if(!moveok)
+        {
+	   if(GetLastError() == 2)
+	      errno = ENOENT;
+	   else
+	      fprintf(stderr, "move error: %x\n", GetLastError());
+	   return 0;
+        }
+        return 1;
+}
 /* This runs with the dir_mutex taken. We need to make sure that we:
  * 1) Create the output file with the inherit flag set
  * 2) We start the new process to inherit that file
@@ -162,8 +239,8 @@ static int create_process(struct server *s, int dfd, char *cmdline,
 	STARTUPINFOW sa;
 	SECURITY_ATTRIBUTES sec;
 	BOOL ret;
-	wchar_t buf[64];
-	wchar_t *wcmdline;
+	wchar_t buf[256];
+	wchar_t *wcmdline = 0;
 	int len;
 
 	memset(&sa, 0, sizeof(sa));
@@ -174,16 +251,15 @@ static int create_process(struct server *s, int dfd, char *cmdline,
 	sec.lpSecurityDescriptor = NULL;
 	sec.bInheritHandle = TRUE;
 
-	if(chdir(win32_get_dirpath(tup_top_fd())) < 0) {
-		perror("chdir");
-		fprintf(stderr, "tup error: Unable to chdir to the project root directory to create a temporary output file.\n");
-		return -1;
-	}
-	swprintf(buf, 64, L".tup\\tmp\\output-%i", s->id);
-	buf[63] = 0;
+	const char *rootdir = win32_get_dirpath(tup_top_fd());
+	wchar_t *w_rootdir = conv_to_wchar_ptr(rootdir); 
+	
+	swprintf(buf, 256, L"%ls\\.tup\\tmp\\output-%i",w_rootdir, s->id);
+	buf[255] = 0;
+	free(w_rootdir);
 	sa.hStdOutput = CreateFile(buf, GENERIC_WRITE, 0, &sec, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, NULL);
 	if(sa.hStdOutput == INVALID_HANDLE_VALUE) {
-		fprintf(stderr, "tup error: Unable to create temporary file for stdout\n");
+		fprintf(stderr, "tup error: Unable to create temporary file for stdout:%s\\.tup\\tmp\n", rootdir);
 		return -1;
 	}
 	sa.hStdError = sa.hStdOutput;
@@ -192,25 +268,46 @@ static int create_process(struct server *s, int dfd, char *cmdline,
 	pi->hProcess = INVALID_HANDLE_VALUE;
 	pi->hThread = INVALID_HANDLE_VALUE;
 
-	/* Passing in the directory to lpCurrentDirectory is insufficient
-	 * because the command may run as './foo.exe', so we need to change to
-	 * the correct directory before calling CreateProcessW. This may just
-	 * happen to work in most cases because the unlinkat() called to remove
-	 * the outputs will usually change to the correct directory anyway.
-	 * This isn't necessarily the case if the command has no outputs, and
-	 * also wouldn't be synchronized.
-	 */
-	if(chdir(win32_get_dirpath(dfd))) {
-		fprintf(stderr, "tup error: Unable to change working directory to '%s'\n", win32_get_dirpath(dfd));
-		return -1;
+	 const char *cur_dir = win32_get_dirpath(dfd);
+	 wchar_t *w_cur_dir = conv_to_wchar_ptr(cur_dir);
+	 conv_slashes(w_cur_dir);
+	 wchar_t *wappname =  conv_to_wchar_ptr(cmdline);
+	 PathRemoveArgs(wappname);
+	 unsigned numappname = wcslen(wappname);
+	 wchar_t *wrest = numappname >= strlen(cmdline) ? 0 : conv_to_wchar_ptr(cmdline + numappname); 
+	conv_slashes(wappname);
+	if(PathFindExtension(wappname)[0] == L'\0')
+	{
+		wchar_t* wappname_new = 
+		(wchar_t *)malloc(sizeof(wchar_t)*(wcslen(wappname)+4));
+		wcscpy(wappname_new, wappname);
+		PathAddExtension(wappname_new, L".exe");
+		free(wappname);
+		wappname = wappname_new;
 	}
-	len = MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, NULL, 0);
-	wcmdline = malloc(sizeof(*wcmdline) * (len + 1));
-	if(!wcmdline) {
-		perror("malloc");
-		return -1;
+	wchar_t *wabsappname = (wchar_t*)malloc(sizeof(wchar_t)*(2*strlen(cur_dir) + 2*strlen(cmdline) + 4) );
+	wabsappname[0] = L'\0';
+	if(PathIsRelative(wappname))
+	{
+		PathCombine(wabsappname, w_cur_dir, wappname);
+	}else{
+		wcscpy(wabsappname, wappname);
 	}
-	MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, wcmdline, len);
+    
+	BOOL isvalidpath = PathFileExists(wabsappname) && !PathIsDirectory(wabsappname);
+	if(!isvalidpath) {
+		// assume it is in path...    	
+		wcscpy(wabsappname, wappname);
+	}
+	wcmdline = (wchar_t*)malloc(sizeof(wchar_t)*(
+		wcslen(wabsappname) +1 + (wrest ? wcslen(wrest): 0)));
+	wcmdline[0] = L'\0';
+	wcscpy(wcmdline, wabsappname);
+	if(wrest) {
+		wcscat(wcmdline, wrest);
+	}
+    //wprintf(L"executing: %ls \n from:%ls\n", wcmdline, w_cur_dir);	
+
 	ret = CreateProcessW(
 		NULL,
 		wcmdline,
@@ -219,11 +316,15 @@ static int create_process(struct server *s, int dfd, char *cmdline,
 		TRUE,
 		CREATE_SUSPENDED,
 		newenv->envblock,
-		NULL,
+		w_cur_dir,
 		&sa,
 		pi);
 	CloseHandle(sa.hStdOutput);
+end:
 	free(wcmdline);
+	free(wrest);
+	free(wappname);
+	free(wabsappname);
 
 	if(!ret)
 		return -1;

@@ -26,6 +26,7 @@ struct file_info;
 
 int open_notify_push(struct file_info *finfo);
 int open_notify_pop(struct file_info *finfo);
-int open_notify(enum access_type at, const char *pathname);
 
+int open_notify_fp(enum access_type at, const char *pathname, const char *fullpath);
+int open_notify(enum access_type at, const char *pathname);
 #endif

@@ -31,19 +31,23 @@
 int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags)
 {
 	int rc;
-
-	dir_mutex_lock(dirfd);
-	if(flags & AT_SYMLINK_NOFOLLOW) {
 #ifdef _WIN32
-		open_notify(ACCESS_READ, pathname);
-#endif
+	char fp[PATH_MAX];
+	fp[0] = '\0';
+	fullpathfromid(fp, PATH_MAX, dirfd, pathname);
+	open_notify_fp(ACCESS_READ, pathname, fp);
+	if(flags & AT_SYMLINK_NOFOLLOW) {
+		rc = lstat(fp, buf);
+	} else {
+		rc = stat(fp, buf);
+	}
+#else
+	if(flags & AT_SYMLINK_NOFOLLOW) {
 		rc = lstat(pathname, buf);
 	} else {
-#ifdef _WIN32
-		open_notify(ACCESS_READ, pathname);
-#endif
 		rc = stat(pathname, buf);
 	}
-	dir_mutex_unlock();
+#endif
+	
 	return rc;
 }

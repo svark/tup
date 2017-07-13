@@ -33,7 +33,7 @@ CFLAGS += -DAT_REMOVEDIR=0x200
 # Use wchar functions for Windows (we use UTF8 internally)
 CFLAGS += -DUNICODE
 CFLAGS += -D_UNICODE
-
+# CLAGS += -g
 ifdef CFLAGS32
 CFLAGS32 = @(CFLAGS32)
 else
