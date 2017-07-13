@@ -74,7 +74,7 @@ static int expand_command(char **res,
 			  struct tupid_entries *group_sticky_root,
 			  struct tupid_entries *used_groups_root);
 static int update(struct node *n);
-extern int movefile(const char*, const char*);
+extern int movefile(const char*, int ifd, const char*, int ofd);
 
 static int do_keep_going;
 static int num_jobs;
@@ -2023,9 +2023,9 @@ static int move_outputs(struct node *n)
 				fprintf(stderr, "tup error: tmppath sized incorrectly in move_outputs()\n");
 				return -1;
 			}
-			fprintf(stderr, "movenodes: %s-> %s\n", curpath, tmppath);
+			//fprintf(stderr, "movenodes: %s-> %s\n", curpath, tmppath);
 			
-			if(!movefile(curpath, tmppath)) {
+			if(!movefile(curpath, tup_top_fd(), tmppath, tup_top_fd())) {
 				/* ENOENT is ok, since the file may not exist
 				 * yet (first time we run the command, for
 				 * example).

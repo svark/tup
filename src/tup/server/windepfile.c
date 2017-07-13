@@ -163,7 +163,7 @@ int fullpath(char *fp, unsigned maxdestbuf, const char *dir, const char*file)
 	int ret;
 	wchar_t *wdir = conv_to_wchar_ptr(dir);
 	wchar_t *wfile = conv_to_wchar_ptr(file);
-	wchar_t wfp[1024];
+	wchar_t wfp[PATH_MAX];
 	wfp[0] = L'\0';
 	ret = 0;
 	if(!PathCombine(wfp, wdir, wfile))
@@ -173,7 +173,7 @@ int fullpath(char *fp, unsigned maxdestbuf, const char *dir, const char*file)
 		goto end;
 	}
 	size_t nc =0;
-    wcstombs_s(&nc, fp, maxdestbuf, wfp,1024);
+    wcstombs_s(&nc, fp, maxdestbuf, wfp,PATH_MAX);
 end:
 	free(wdir);
 	free(wfile);
@@ -197,27 +197,24 @@ static void conv_slashes(wchar_t *wcurpath)
 	}
 }
 
-BOOL movefile(const char *curpath, const char *tmppath)
+BOOL movefile(const char *curpath, int curdir, 
+const char *tmppath, int tmppathdir)
 {
-	const char *rootdir = win32_get_dirpath(tup_top_fd());
-	wchar_t *w_rootdir = conv_to_wchar_ptr(rootdir); 
-	wchar_t *wcurpath = conv_to_wchar_ptr(curpath);
-	wchar_t *wtmppath = conv_to_wchar_ptr(tmppath);
 	
-	conv_slashes(wcurpath);
-	conv_slashes(wtmppath);
-	
-	wchar_t abscurpath[1024], abstmppath[1024];
-	abscurpath[0] = L'\0';
-	abstmppath[0] = L'\0';
-	PathCombine(abscurpath, w_rootdir, wcurpath);
-	PathCombine(abstmppath, w_rootdir, wtmppath);
-	free(wcurpath);
-	free(w_rootdir);
-	free(wtmppath);
-	fwprintf(stderr, L"moving %ls -> %ls\n", abscurpath, abstmppath);
-	BOOL moveok =  MoveFileEx(abscurpath, abstmppath, 
+	char abscurpath[PATH_MAX], abstmppath[PATH_MAX];
+	abscurpath[0] = '\0';
+	abstmppath[0] = '\0';
+	fullpathfromid(abscurpath, PATH_MAX, curdir, curpath);
+	fullpathfromid(abstmppath, PATH_MAX, tmppathdir, tmppath);
+	wchar_t *wabscurpath = conv_to_wchar_ptr(abscurpath);
+	wchar_t *wabstmppath = conv_to_wchar_ptr(abstmppath);
+	conv_slashes(wabscurpath);
+	conv_slashes(wabstmppath);
+	//fwprintf(stderr, L"moving %ls -> %ls\n", wabscurpath, wabstmppath);
+	BOOL moveok =  MoveFileEx(wabscurpath, wabstmppath, 
 	MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+	free(wabscurpath);
+	free(wabstmppath);
 	if(!moveok)
         {
 	   if(GetLastError() == 2)

@@ -38,8 +38,8 @@ int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpat
 
 	//;
 #ifdef _WIN32
-   extern int movefile(const char *, const char*);
-   rc = movefile(oldpathp, newpathp);
+   extern int movefile(const char *, int, const char*, int);
+   rc = movefile(oldpathp, olddirfd, newpathp, newdirfd);
 #else
 dir_mutex_lock(olddirfd)
 	rc = rename(oldpathp, newpathp);
