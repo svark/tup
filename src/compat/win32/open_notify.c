@@ -71,9 +71,10 @@ const char *pathname,
 
                 struct finfo_list *flist;
                 struct stat buf;
-		if(stat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
+		if(lstat(pathname, &buf) < 0 || !S_ISDIR(buf.st_mode)) {
                         flist = LIST_FIRST(&finfo_list_head);
-                        if(handle_open_file(at, fullpath, flist->finfo) < 0)
+					//fprintf(stderr, "oen file:%s\n", fullpath);
+						if(handle_open_file(at, pathname, flist->finfo) < 0)
                                 return -1;
                 }
         }
